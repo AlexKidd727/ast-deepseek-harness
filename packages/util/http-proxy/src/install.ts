@@ -157,6 +157,15 @@ async function createPolicyDispatcher(policy: ProxyPolicy): Promise<Dispatcher> 
 }
 
 /**
+ * Which layer currently owns the installed policy, or `undefined` before the first install.
+ * Settings uses this so an exported `HTTP_PROXY` keeps winning over the form.
+ * @returns the active policy's `source`, or `undefined` when nothing has been installed yet.
+ */
+export function activeProxySource(): ProxyPolicy['source'] | undefined {
+  return active?.source
+}
+
+/**
  * Route this process's outbound HTTP through `policy`.
  *
  * Installing replaces undici's global dispatcher, which is what Node's built-in `fetch` resolves, so
@@ -168,10 +177,13 @@ async function createPolicyDispatcher(policy: ProxyPolicy): Promise<Dispatcher> 
  * PTC runtime — evaluate model-authored scripts, which must not receive a proxy URL that may carry
  * credentials. A worker that needs the policy has to be handed one explicitly and install it itself.
  *
+ * Live Settings reinstalls call this after composing a `source: 'settings'` policy; the launcher
+ * still goes through {@link installProxyFromEnvironment}.
+ *
  * @param policy - the resolved policy to install.
  * @returns a disposer restoring the previous dispatcher, policy, and environment, then closing the agent.
  */
-async function installGlobalProxy(policy: ProxyPolicy): Promise<() => Promise<void>> {
+export async function installProxyPolicy(policy: ProxyPolicy): Promise<() => Promise<void>> {
   const previousPolicy = active
   if (policy.source === 'none') {
     // A direct policy mounted over an installed one must actually stop proxying. Recording the policy
@@ -299,7 +311,7 @@ export async function installProxyFromEnvironment(
 ): Promise<() => Promise<void>> {
   const { policy, diagnostics } = resolveProxyPolicy(env)
   for (const diagnostic of diagnostics) report(diagnostic.message)
-  return await installGlobalProxy(policy)
+  return await installProxyPolicy(policy)
 }
 
 /**

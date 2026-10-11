@@ -105,6 +105,12 @@
       name: '@deepseek-ai/dsh-settings'
       disabled: !!js "!ctx.get('profileContext')"
 
+    # Settings Network page: host/port/user/password → live proxy when launch
+    # env did not already install HTTP(S)_PROXY / ALL_PROXY.
+    - id: http-proxy-settings
+      name: '@deepseek-ai/dsh-http-proxy-settings'
+      disabled: !!js "!ctx.get('profileContext')"
+
     # Credential sources: inherited environment over the managed
     # `$DSH_HOME/.credentials.yaml`, with project and user `.env` fallbacks.
     # Adapters resolve references per request; the Models page writes only the

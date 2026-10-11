@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to apply one outbound HTTP proxy policy to Harness requests that use Node's built-in `fetch`, including LLM, web-search, and HTTP MCP traffic. The launcher reads standard proxy environment variables once, and ordinary `fetch` callers require no extra imports or changes. Local loopback traffic stays direct, while unsupported proxy URLs are reported and skipped for the affected scheme. Public helpers let callers route transports with their own proxy settings, prepare child-process environments, or clear proxy variables for isolated replays.
+Use this package to apply one outbound HTTP proxy policy to Harness requests that use Node's built-in `fetch`, including LLM, web-search, and HTTP MCP traffic. The launcher reads standard proxy environment variables once; the Settings Network page can also compose host/port/user/password into a policy and call `installProxyPolicy` for a live reinstall when no launch env proxy is set. Ordinary `fetch` callers require no extra imports or changes. Local loopback traffic stays direct, while unsupported proxy URLs are reported and skipped for the affected scheme. Public helpers let callers route transports with their own proxy settings, prepare child-process environments, or clear proxy variables for isolated replays.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Use this package to apply one outbound HTTP proxy policy to Harness requests tha
 <a id="use-this-package"></a>
 ## Use this package
 
-Nothing to mount, and nothing to configure. The `dsh` launcher resolves and installs the policy for every profile before the first plugin loads, so a user who exports `HTTPS_PROXY` is proxied everywhere. This is a library rather than a plugin because transport policy has one answer per process: there is no second implementation to swap and no scope narrower than the process to give one.
+Nothing to mount in this package. The `dsh` launcher resolves and installs the policy for every profile before the first plugin loads, so a user who exports `HTTPS_PROXY` is proxied everywhere. When those variables are unset, `@deepseek-ai/dsh-http-proxy-settings` may install a `source: 'settings'` policy from the Settings form without restarting. This remains a library rather than a plugin because transport policy has one answer per process: Settings only supplies fields and calls `installProxyPolicy`.
 
 ### Writing a new outbound call
 

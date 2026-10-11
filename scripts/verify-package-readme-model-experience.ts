@@ -200,6 +200,8 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/session-query/session-query': { kind: 'none', reason: 'The trusted query service exposes cloned records only to callers and registers nothing model-facing.' },
   'packages/session-query/session-query-sqlite': { kind: 'none', reason: 'The search backend returns hits only to callers and registers nothing model-facing.' },
   'packages/boot/config-editor': { kind: 'indirect', reason: 'Configuration consumers own model-visible behavior; this service persists profile edits.' },
+  'packages/boot/http-proxy-settings': { kind: 'none', reason: 'Transport settings only: composes a proxy URL and reinstalls the process dispatcher; registers no model-facing surface.' },
+  'packages/client/ui-settings-network': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/settings/settings': { kind: 'indirect', reason: 'The seam stores and resolves user settings; consumer plugins own any model-facing content fed by a value.' },
   'packages/credentials/credentials': { kind: 'indirect', reason: 'The seam resolves credential references; the consuming adapter owns every model-facing use a value authorizes.' },
   'packages/credentials/credentials-local': { kind: 'indirect', reason: 'The file/environment provider stores credential values; consumers of ctx.credentials own any model-facing behavior.' },

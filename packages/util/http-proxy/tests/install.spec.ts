@@ -4,8 +4,11 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { getGlobalDispatcher } from 'undici'
 import {
+  activeProxySource,
   clearedProxyEnv,
   installProxyFromEnvironment,
+  installProxyPolicy,
+  policyFromSettings,
   proxyEnvironmentForChild,
   proxyRouteFor,
 } from '../src/index.ts'
@@ -101,6 +104,21 @@ describe('installProxyFromEnvironment', () => {
     try {
       await expect((await fetch(proxyTarget)).text()).resolves.toBe('VIA-PROXY')
       expect(proxied).toEqual([`GET ${proxyTarget}`])
+    } finally {
+      await dispose()
+    }
+  })
+
+  it('installProxyPolicy from settings routes fetch and reports source settings', async () => {
+    // NOTE: Settings live-reinstall path — compose host/port into a policy and install without env.
+    const parsed = new URL(proxyUrl)
+    const dispose = await installProxyPolicy(policyFromSettings({
+      host: parsed.hostname,
+      port: Number(parsed.port),
+    }))
+    try {
+      expect(activeProxySource()).toBe('settings')
+      await expect((await fetch(proxyTarget)).text()).resolves.toBe('VIA-PROXY')
     } finally {
       await dispose()
     }

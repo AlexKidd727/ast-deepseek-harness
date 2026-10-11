@@ -26,6 +26,7 @@ boot 组负责启动 profile 应用并管理其已安装组合。`app-boot` 解�
 | [`cmdline`](cmdline/README.zh.md) | 让应用持有自己的 flag、`--help` 与退出码；启动器自身 flag 之后的一切原样传入 | `cmdlineArgs`、`appExit` |
 | [`hmr`](hmr/README.zh.md) | 协调模块与配置重载，并与包修改互斥执行 | `hmr` |
 | [`config-editor`](config-editor/README.zh.md) | 通过 Loader 应用并持久化当前 profile 配置 | `configEditor` |
+| [`http-proxy-settings`](http-proxy-settings/README.zh.md) | 出站 HTTP 代理的设置字段（主机/端口/用户名/密码）；环境未设置时支持即时安装 | （仅 Config） |
 | [`plugin-manager`](plugin-manager/README.zh.md) | 通过共享 CLI 操作管理当前 profile 插件与组合包 | `pluginManager` |
 
 <a id="related-documentation"></a>

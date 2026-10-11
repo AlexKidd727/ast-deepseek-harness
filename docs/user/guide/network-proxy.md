@@ -2,7 +2,20 @@
 
 English | [中文](network-proxy.zh.md)
 
-DSH routes its outbound requests — model calls, web search, page fetches, and MCP servers over HTTP — through the proxy named by the standard proxy environment variables. It reads them at launch; nothing else needs configuring. A few paths stay direct by design or by runtime limit, listed under "What stays direct" below.
+DSH routes its outbound requests — model calls, web search, page fetches, and MCP servers over HTTP — through an HTTP proxy. You can configure that proxy with the standard environment variables, or in Settings → Network with host, port, username, and password. Environment variables always win over the Settings form. A few paths stay direct by design or by runtime limit, listed under "What stays direct" below.
+
+## Settings → Network
+
+In the Web or Desktop UI, open **Settings → Network** and fill in:
+
+| Field | Role |
+|---|---|
+| Host | Proxy hostname or IP; leave blank to connect directly |
+| Port | TCP port (`1`–`65535`; default `8080`) |
+| Username | Optional |
+| Password | Optional; stored redacted in settings |
+
+Saving applies immediately when no `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` is set in the launch environment: the Host recomposes the proxy URL and reinstalls the process dispatcher without restart. If those variables are already set (exported or in `$DSH_HOME/.env`), they keep owning the route until you clear them and restart; the form notice explains that precedence.
 
 ## Export the variables
 
@@ -11,9 +24,9 @@ export HTTPS_PROXY=http://127.0.0.1:7890
 export HTTP_PROXY=http://127.0.0.1:7890
 ```
 
-Put both lines in your shell profile so every `dsh` invocation inherits them, or in `$DSH_HOME/.env` (`~/.dsh/.env` by default) next to your API key; an exported variable always wins over that file. A project's own `.env` cannot set them: it arrives with `git clone`, and DSH refuses to start rather than let a repository decide where your traffic goes.
+Put both lines in your shell profile so every `dsh` invocation inherits them, or in `$DSH_HOME/.env` (`~/.dsh/.env` by default) next to your API key; an exported variable always wins over that file and over Settings → Network. A project's own `.env` cannot set them: it arrives with `git clone`, and DSH refuses to start rather than let a repository decide where your traffic goes.
 
-A proxy that needs credentials takes them in the URL: `http://user:password@proxy.example:8080`. DSH never prints the URL back: a diagnostic names the variable it rejected, so neither the username nor the password appears anywhere.
+A proxy that needs credentials takes them in the URL: `http://user:password@proxy.example:8080`. DSH never prints the URL back: a diagnostic names the variable it rejected, so neither the username nor the password appears anywhere. The Settings form builds the same kind of URL from its host/port/user/password fields.
 
 ## Why your browser is proxied but your terminal is not
 

@@ -7,17 +7,28 @@
  * LLM adapters, web search, MCP over HTTP, and telemetry are covered without touching their code.
  *
  * This is a library, not a plugin: transport policy has one answer per process, so there is nothing
- * for a composition to mount, swap, or scope.
+ * for a composition to mount, swap, or scope. The Settings form calls {@link installProxyPolicy}
+ * for live reinstall when no launch env proxy is active.
  *
- * Four functions, one per way a caller needs the policy — install it, ask how to send one request,
- * build a child's environment, and strip the ambient one for a replay.
  * @module @deepseek-ai/dsh-http-proxy
  */
 
 export {
+  activeProxySource,
   clearedProxyEnv,
   installProxyFromEnvironment,
+  installProxyPolicy,
   proxyEnvironmentForChild,
   proxyRouteFor,
   type ProxyRoute,
 } from './install.ts'
+
+export {
+  composeProxyUrl,
+  DIRECT_POLICY,
+  policyFromSettings,
+  resolveProxyPolicy,
+  type EnvLookup,
+  type ProxyPolicy,
+  type ProxySettingsFields,
+} from './policy.ts'

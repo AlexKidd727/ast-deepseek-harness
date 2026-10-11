@@ -26,6 +26,7 @@ The boot group launches profile applications and manages their installed composi
 | [`cmdline`](cmdline/README.md) | Lets the app own its flags, `--help`, and exit code; passes everything after the launcher's flags through verbatim | `cmdlineArgs`, `appExit` |
 | [`hmr`](hmr/README.md) | Coordinates module and configuration reloads with package mutations | `hmr` |
 | [`config-editor`](config-editor/README.md) | Persists active profile configuration through Loader reconciliation | `configEditor` |
+| [`http-proxy-settings`](http-proxy-settings/README.md) | Settings fields for outbound HTTP proxy (host/port/user/password) with live install when env did not set one | (Config only) |
 | [`plugin-manager`](plugin-manager/README.md) | Manages current-profile plugins and bundle packages through shared CLI operations | `pluginManager` |
 
 <a id="related-documentation"></a>

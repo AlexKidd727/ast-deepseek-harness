@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for 2026-10-11-settings-http-proxy-fields.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-11-settings-http-proxy-fields.md
+/agent-note-settings-fields-for-outbound-http-proxy-with-live-install:
+  en: fcc15bfdb3a48b5a
+  zh: 93b68ce35ae8fbe4
+/agent-note-settings-fields-for-outbound-http-proxy-with-live-install/problem:
+  en: 353d83f126e9981d
+  zh: 835fc8a1b2249bdc
+/agent-note-settings-fields-for-outbound-http-proxy-with-live-install/decision:
+  en: d329be4a1d2474b4
+  zh: 29c5b5936f73ee45
+/agent-note-settings-fields-for-outbound-http-proxy-with-live-install/consequences:
+  en: 78e59003caf9400a
+  zh: b0e8962908ebe72c

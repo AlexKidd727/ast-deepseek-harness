@@ -15,6 +15,9 @@
       "path": "../../boot/config-editor"
     },
     {
+      "path": "../../boot/http-proxy-settings"
+    },
+    {
       "path": "../../settings/settings"
     }
   ]

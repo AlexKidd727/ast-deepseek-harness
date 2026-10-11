@@ -71,8 +71,11 @@ export interface ProxyPolicy {
   readonly httpsProxy?: string
   /** The bypass list, already merged with {@link LOOPBACK_NO_PROXY}. Empty when nothing is bypassed. */
   readonly noProxy: string
-  /** Which layer supplied the winning proxy URL; `env` when either field came from the environment. */
-  readonly source: 'env' | 'none'
+  /**
+   * Which layer supplied the winning proxy URL.
+   * `env` from launch variables, `settings` from the Settings form, `none` when direct.
+   */
+  readonly source: 'env' | 'settings' | 'none'
 }
 
 /** A policy that proxies nothing. Callers that have not installed a policy resolve URLs against this. */
@@ -292,6 +295,82 @@ export function bypassesProxy(noProxy: string, url: URL): boolean {
     if (host === candidate || host.endsWith(`.${candidate}`)) return true
   }
   return false
+}
+
+/**
+ * Fields the Settings form (and deepagents-style config) use to build one proxy URL.
+ * Host is required for a usable proxy; port must be in `1..65535`.
+ */
+export interface ProxySettingsFields {
+  /** Proxy hostname or IP; blank / missing disables the settings proxy. */
+  readonly host?: string | undefined
+  /** TCP port; defaults are applied by the Settings plugin, not here. */
+  readonly port?: number | undefined
+  /** Optional proxy username. */
+  readonly username?: string | undefined
+  /** Optional proxy password; never logged by this package. */
+  readonly password?: string | undefined
+}
+
+/** Inclusive TCP port bounds; values outside this range refuse composition. */
+const MIN_PROXY_PORT = 1
+const MAX_PROXY_PORT = 65_535
+
+/**
+ * Bracket a bare IPv6 literal so `host:port` stays unambiguous in a URL.
+ * @param host - hostname or IP as the user typed it.
+ * @returns `host`, or `[host]` when `host` is a bare IPv6 literal.
+ */
+function hostForUrl(host: string): string {
+  if (host.includes(':') && !host.startsWith('[')) return `[${host}]`
+  return host
+}
+
+/**
+ * Build an `http://[user:pass@]host:port` proxy URL from decomposed Settings fields.
+ *
+ * Credentials are URL-encoded. A blank host, a non-integer port, or a port outside
+ * `1..65535` returns `undefined` so traffic stays direct rather than guessing.
+ *
+ * @param fields - host / port / optional username and password.
+ * @returns a validated `http:` proxy URL, or `undefined` when settings are incomplete.
+ */
+export function composeProxyUrl(fields: ProxySettingsFields): string | undefined {
+  const host = fields.host?.trim()
+  if (host === undefined || host === '') return undefined
+  const port = fields.port
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < MIN_PROXY_PORT || port > MAX_PROXY_PORT) {
+    return undefined
+  }
+  const authority = hostForUrl(host)
+  const username = fields.username?.trim()
+  if (username !== undefined && username !== '') {
+    const user = encodeURIComponent(username)
+    const password = encodeURIComponent(fields.password ?? '')
+    return `http://${user}:${password}@${authority}:${port}`
+  }
+  return `http://${authority}:${port}`
+}
+
+/**
+ * Build a {@link ProxyPolicy} from Settings fields for live install.
+ *
+ * An incomplete or invalid field set yields {@link DIRECT_POLICY}. Both schemes
+ * share the same URL (matching deepagents' process-env install). Loopback stays
+ * on the bypass list.
+ *
+ * @param fields - host / port / optional credentials from the Settings form.
+ * @returns a policy with `source: 'settings'`, or direct when composition fails.
+ */
+export function policyFromSettings(fields: ProxySettingsFields): ProxyPolicy {
+  const url = composeProxyUrl(fields)
+  if (url === undefined) return DIRECT_POLICY
+  return {
+    httpProxy: url,
+    httpsProxy: url,
+    noProxy: withLoopback(undefined),
+    source: 'settings',
+  }
 }
 
 /**

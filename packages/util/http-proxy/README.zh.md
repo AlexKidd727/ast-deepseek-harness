@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可为采用 Node 内置 `fetch` 的 Harness 请求应用一份出站 HTTP 代理策略，包括 LLM（大语言模型）、web 搜索与 HTTP MCP 流量。启动器只读取一次标准代理环境变量，普通 `fetch` 调用方无需额外引入或改动。loopback 流量保持直连；不受支持的代理 URL 会被报告，并针对受影响的协议跳过。公共辅助函数可让调用方路由采用自有代理设置的传输、准备子进程环境，或为隔离回放清除代理变量。
+使用本包可为采用 Node 内置 `fetch` 的 Harness 请求应用一份出站 HTTP 代理策略，包括 LLM（大语言模型）、web 搜索与 HTTP MCP 流量。启动器只读取一次标准代理环境变量；Settings「网络」页也可将主机/端口/用户名/密码拼成策略，并在启动环境未设置代理时调用 `installProxyPolicy` 即时重装。普通 `fetch` 调用方无需额外引入或改动。loopback 流量保持直连；不受支持的代理 URL 会被报告，并针对受影响的协议跳过。公共辅助函数可让调用方路由采用自有代理设置的传输、准备子进程环境，或为隔离回放清除代理变量。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-无需挂载，也无需配置。`dsh` 启动器会在第一个插件加载之前，为每个 profile 解析并安装策略，因此导出了 `HTTPS_PROXY` 的用户在所有位置都会走代理。本包是库而非插件，因为传输策略每个进程只有一个答案：没有第二个实现可替换，也没有比进程更窄的作用域可赋予。
+本包无需挂载。`dsh` 启动器会在第一个插件加载之前，为每个 profile 解析并安装策略，因此导出了 `HTTPS_PROXY` 的用户在所有位置都会走代理。当这些变量未设置时，`@deepseek-ai/dsh-http-proxy-settings` 可从 Settings 表单安装 `source: 'settings'` 策略而无需重启。本包仍是库而非插件，因为传输策略每个进程只有一个答案：Settings 只提供字段并调用 `installProxyPolicy`。
 
 ### 编写新的出站调用
 

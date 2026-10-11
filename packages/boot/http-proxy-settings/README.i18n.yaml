@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/boot/http-proxy-settings/README.md
+/:
+  en: 369a3b5189c4b27d
+  zh: 0a1758b0de8d9151
+/deepseek-ai-dsh-http-proxy-settings:
+  en: e27440d2807811fd
+  zh: b08a32caf0be8ea3
+/deepseek-ai-dsh-http-proxy-settings/summary:
+  en: 89a1a8695cb501ef
+  zh: 5cd32322dadd80a3
+/deepseek-ai-dsh-http-proxy-settings/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: d152484eb41ac6b4
+/deepseek-ai-dsh-http-proxy-settings/use-this-package:
+  en: edcda228492b9a05
+  zh: 59721e703c9dfd81
+/deepseek-ai-dsh-http-proxy-settings/understand-the-implementation:
+  en: 447260749ffcc48f
+  zh: 5c47e850e3ec2d35
+/deepseek-ai-dsh-http-proxy-settings/further-exploration:
+  en: 11387240075d94ef
+  zh: 585fb08b48efcdf3
+/deepseek-ai-dsh-http-proxy-settings/model-experience:
+  en: 4716a3cf0f5a6452
+  zh: 0759de9ac58bfeea
+/deepseek-ai-dsh-http-proxy-settings/model-experience/kv-cache-effect:
+  en: 4f0eadf94828e66e
+  zh: 97d3eb3e79199354
+/deepseek-ai-dsh-http-proxy-settings/known-limitations-and-deferred-work:
+  en: aafb06175945842a
+  zh: 9745cf3c28298bfa
+/deepseek-ai-dsh-http-proxy-settings/known-limitations-and-deferred-work/dev-note:
+  en: b291b9b76c9c023e
+  zh: 21244737fbba6800

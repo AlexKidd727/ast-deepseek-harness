@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { EnvLookup } from '../src/policy.ts'
 import {
   bypassesProxy,
+  composeProxyUrl,
   isLoopbackHost,
+  policyFromSettings,
   proxyForUrl,
   resolveProxyPolicy,
   DIRECT_POLICY,
@@ -238,5 +240,42 @@ describe('proxyForUrl', () => {
 
   it('returns nothing under a direct policy', () => {
     expect(proxyForUrl(DIRECT_POLICY, new URL('https://example.com/'))).toBeUndefined()
+  })
+})
+
+describe('composeProxyUrl', () => {
+  it('builds a host:port URL without credentials', () => {
+    expect(composeProxyUrl({ host: 'proxy.example', port: 8080 })).toBe('http://proxy.example:8080')
+  })
+
+  it('URL-encodes credentials', () => {
+    expect(composeProxyUrl({
+      host: 'proxy.example', port: 8080, username: 'a b', password: 'p@ss',
+    })).toBe('http://a%20b:p%40ss@proxy.example:8080')
+  })
+
+  it('brackets an IPv6 host', () => {
+    expect(composeProxyUrl({ host: '::1', port: 8080 })).toBe('http://[::1]:8080')
+  })
+
+  it('returns undefined without a host or with a bad port', () => {
+    expect(composeProxyUrl({ host: '  ', port: 8080 })).toBeUndefined()
+    expect(composeProxyUrl({ host: 'proxy.example', port: 0 })).toBeUndefined()
+    expect(composeProxyUrl({ host: 'proxy.example', port: 70_000 })).toBeUndefined()
+    expect(composeProxyUrl({ host: 'proxy.example', port: 8080.5 })).toBeUndefined()
+  })
+})
+
+describe('policyFromSettings', () => {
+  it('marks a composed policy as settings and merges loopback bypass', () => {
+    const policy = policyFromSettings({ host: 'proxy.example', port: 8080 })
+    expect(policy.source).toBe('settings')
+    expect(policy.httpProxy).toBe('http://proxy.example:8080')
+    expect(policy.httpsProxy).toBe('http://proxy.example:8080')
+    expect(policy.noProxy).toContain('localhost')
+  })
+
+  it('returns the direct policy when composition fails', () => {
+    expect(policyFromSettings({ host: '', port: 8080 })).toEqual(DIRECT_POLICY)
   })
 })
