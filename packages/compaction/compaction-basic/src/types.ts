@@ -10,7 +10,12 @@ import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 export interface CompactionPolicyConfig {
   /** Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`. Defaults to `0.8`. */
   thresholdRatio?: number
-  /** Additional pressure headroom beyond the routed output reservation. Non-negative integer; defaults to `65536`. */
+  /**
+   * Additional pressure headroom beyond the routed output reservation.
+   * Non-negative integer; defaults to `65536`. At capacity resolution the
+   * effective value is capped at 10% of the adapter context window so local
+   * small-window routes keep a proactive pressure trigger.
+   */
   headroomTokens?: number
   /** Recent context retained as a fraction of context window minus reserved output tokens. Defaults to `0.16`. */
   retainRatio?: number

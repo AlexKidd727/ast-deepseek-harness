@@ -13,7 +13,10 @@ import {
   resolveTargetPolicy,
 } from '@deepseek-ai/dsh-compaction-basic/src/config.ts'
 import type { CompactionResult } from '@deepseek-ai/dsh-compaction'
-import LlmRuntime, { createUserMessage, ToolCallId, CONTEXT_WINDOW_EXCEEDED_CODE, createSystemMessage, createToolResultMessage, LlmAdapter , createMessage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, {
+  createUserMessage, ToolCallId, CONTEXT_WINDOW_EXCEEDED_CODE, createSystemMessage,
+  createToolResultMessage, LlmAdapter, createMessage, ReasoningEffortId,
+} from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
@@ -391,8 +394,9 @@ describe('compact configuration and defaults', () => {
       model: 'shared-id',
     })
 
+    // headroom 600 is capped to floor(W×0.1)=100, so the 0.5 ratio term wins.
     expect(resolveCompactSpec(small, 1_000, 0)).toMatchObject({
-      thresholdTokens: 400,
+      thresholdTokens: 500,
       retainTokens: 120,
     })
     expect(resolveCompactSpec(otherProvider, 2_000, 0)).toMatchObject({
@@ -443,16 +447,38 @@ describe('compact configuration and defaults', () => {
     })
   })
 
-  it.each([500, 501])('rejects headroom %i that exhausts the remaining capacity', (headroomTokens) => {
+  it('caps default headroom to 10% of a small local context window', () => {
+    const policy = resolveTargetPolicy(resolveConfig({}), { provider: MODEL, model: MODEL })
+    // W=49152, O=8192 → messageBudget=40960, effective headroom=min(65536,4915)=4915
+    expect(resolveCompactSpec(policy, 49_152, 8_192)).toMatchObject({
+      contextWindow: 49_152,
+      thresholdTokens: 36_045,
+      retainTokens: 6_553,
+    })
+  })
+
+  it('keeps a pressure trigger when the absolute default headroom exceeds W−O', () => {
+    const policy = resolveTargetPolicy(resolveConfig({}), { provider: MODEL, model: MODEL })
+    // Without the window-fraction cap, headroom 65536 would exhaust a 40K window.
+    expect(resolveCompactSpec(policy, 40_960, 8_192)).toMatchObject({
+      contextWindow: 40_960,
+      thresholdTokens: 28_672,
+      retainTokens: 5_242,
+    })
+  })
+
+  it.each([100, 101])('rejects headroom %i that still exhausts capacity after the window-fraction cap', (headroomTokens) => {
     const policy = resolveTargetPolicy(resolveConfig({ headroomTokens }), { provider: MODEL, model: MODEL })
-    expect(() => resolveCompactSpec(policy, 1_000, 500))
+    // W=1000, O=900 → messageBudget=100, effective headroom=min(configured,100)=100
+    expect(() => resolveCompactSpec(policy, 1_000, 900))
       .toThrow(/headroom tokens.*leaving no pressure budget/)
   })
 
   it('rejects ratio retention that reaches the headroom-limited threshold', () => {
-    const policy = resolveTargetPolicy(resolveConfig({ headroomTokens: 420 }), { provider: MODEL, model: MODEL })
-    expect(() => resolveCompactSpec(policy, 1_000, 500))
-      .toThrow(/retainTokens \(80\) must be less than threshold tokens 80/)
+    const policy = resolveTargetPolicy(resolveConfig({ headroomTokens: 10_000 }), { provider: MODEL, model: MODEL })
+    // W=10000, O=8900 → messageBudget=1100, effective headroom=min(10000,1000)=1000, threshold=100
+    expect(() => resolveCompactSpec(policy, 10_000, 8_900))
+      .toThrow(/retainTokens \(176\) must be less than threshold tokens 100/)
   })
 
   it('rejects a reserve that leaves no message budget or is not a count', () => {
@@ -1329,8 +1355,23 @@ class ScriptedAdapter extends LlmAdapter {
   constructor(
     private readonly blocks: readonly ContentBlock[],
     private readonly finish: (StreamChunk & { type: 'finish' })['reason'] = { kind: 'stop' },
+    private readonly reasoningEfforts: readonly string[] = [],
   ) {
     super()
+  }
+
+  override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+    return Promise.resolve({
+      provider,
+      id: model,
+      name: model,
+      ...this.reasoningEfforts.length === 0 ? {} : {
+        reasoning: {
+          efforts: this.reasoningEfforts.map(id => ({ id: ReasoningEffortId(id), name: id })),
+          defaultEffort: ReasoningEffortId(this.reasoningEfforts[0]!),
+        },
+      },
+    })
   }
 
   override async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
@@ -1372,12 +1413,13 @@ async function summarizerHarness(
   finish?: (StreamChunk & { type: 'finish' })['reason'],
   model = MODEL,
   config: BasicCompactionConfig = { auto: false },
+  reasoningEfforts: readonly string[] = [],
 ): Promise<{ ctx: Context; adapter: ScriptedAdapter; compact: ExposedCompactionEngine }> {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionProjectionRegistry)
   void new TokenMeter(ctx)
-  const adapter = new ScriptedAdapter(blocks, finish)
+  const adapter = new ScriptedAdapter(blocks, finish, reasoningEfforts)
   ctx.llm.registerAdapter([model], adapter)
   const compact = new ExposedCompactionEngine(ctx, config)
   return { ctx, adapter, compact }
@@ -1456,8 +1498,24 @@ describe('default one-shot summarizer', () => {
       toolHistory: session.toolHistory(),
       purpose: 'compaction',
     })
+    expect(adapter.lastOptions).not.toHaveProperty('reasoningEffort')
     const instruction = adapter.lastOptions?.messages.at(-1)?.content[0]
     expect(instruction?.type === 'text' ? instruction.text : '').toContain('## Primary Request and Intent')
+  })
+
+  it('forces reasoningEffort off when the summarization route advertises that effort', async () => {
+    const { adapter, compact } = await summarizerHarness(
+      [{ type: 'text', text: 'public summary' }],
+      undefined,
+      MODEL,
+      { auto: false, maxTokens: 321 },
+      ['high', 'off'],
+    )
+    await compact.runSummarize(promptInput('transcript'), agent(conversation(1), MODEL), SIGNAL)
+    expect(adapter.lastOptions).toMatchObject({
+      purpose: 'compaction',
+      reasoningEffort: ReasoningEffortId('off'),
+    })
   })
 
   it('replays the conversation prefix and appends the instruction as the final message', async () => {

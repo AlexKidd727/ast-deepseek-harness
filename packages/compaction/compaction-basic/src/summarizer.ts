@@ -5,12 +5,17 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { contentHasImage, BlockAssembler, LlmError } from '@deepseek-ai/dsh-llm'
+import {
+  contentHasImage, BlockAssembler, LlmError, ReasoningEffortId,
+} from '@deepseek-ai/dsh-llm'
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
 import type {
   ContentBlock, FinishReason, GenerateOptions, Message, RequestMessage, TokenUsage, ToolSchema,
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+
+/** Compaction is a control-plane checkpoint; disable thinking when the route allows it. */
+const COMPACTION_REASONING_OFF = ReasoningEffortId('off')
 
 interface SummaryConfig {
   readonly summarizationProvider: string
@@ -149,6 +154,11 @@ export async function summarizeWithLlm(
       content: [{ type: 'text', text: COMPACTION_INSTRUCTION }],
     }),
   ]
+  // NOTE: thinking models (e.g. local Qwen3.8) otherwise spend maxTokens on
+  // reasoning and truncate the checkpoint mid-structure (discussion #3465).
+  const modelInfo = await ctx.llm.resolveModelInfo(target.provider, target.model, signal)
+  const supportsCompactionOff = modelInfo.reasoning?.efforts
+    .some(effort => effort.id === COMPACTION_REASONING_OFF) === true
   const options: GenerateOptions = {
     provider: target.provider,
     model: target.model,
@@ -158,6 +168,7 @@ export async function summarizeWithLlm(
     maxTokens: config.maxTokens,
     sessionId: agent.session.id,
     purpose: 'compaction',
+    ...supportsCompactionOff ? { reasoningEffort: COMPACTION_REASONING_OFF } : {},
     ...signal === undefined ? {} : { signal },
   }
   for await (const chunk of ctx.llm.stream(options)) assembler.push(chunk)

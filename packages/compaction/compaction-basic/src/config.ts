@@ -22,6 +22,13 @@ const DEFAULT_THRESHOLD_RATIO = 0.8
 /** Default verbatim-tail fraction for every routed model. */
 const DEFAULT_RETAIN_RATIO = 0.16
 
+/**
+ * Cap absolute headroom by this fraction of the adapter context window.
+ * The configured default `65536` remains effective on 1M-class routes while
+ * local 32K–256K windows keep a proactive pressure budget (discussion #8079).
+ */
+const HEADROOM_WINDOW_FRACTION = 0.1
+
 /** Fields shared by top-level defaults and exact-target overrides. */
 const POLICY_CONFIG_KEYS = [
   'thresholdRatio',
@@ -178,12 +185,18 @@ export function resolveCompactSpec(
       + "the adapter model's contextWindow above the effective request maxTokens",
     )
   }
-  const pressureBudgetTokens = messageBudgetTokens - policy.headroomTokens
+  // NOTE: scale absolute headroom to the window so local Qwen/flash routes do
+  // not disable proactive compaction when the cloud-sized default exceeds W−O.
+  const headroomTokens = Math.min(
+    policy.headroomTokens,
+    Math.floor(contextWindow * HEADROOM_WINDOW_FRACTION),
+  )
+  const pressureBudgetTokens = messageBudgetTokens - headroomTokens
   if (pressureBudgetTokens <= 0) {
     throw new TargetPressureConfigError(
       targetKey,
       `compaction-basic: ${targetKey} reserves ${reservedCompletionTokens} completion tokens `
-      + `and ${policy.headroomTokens} headroom tokens of its ${contextWindow}-token context `
+      + `and ${headroomTokens} headroom tokens of its ${contextWindow}-token context `
       + 'window, leaving no pressure budget; reduce the effective request maxTokens or '
       + 'compaction headroomTokens, or configure a larger adapter model contextWindow',
     )
