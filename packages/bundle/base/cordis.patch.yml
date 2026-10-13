@@ -111,6 +111,11 @@
       name: '@deepseek-ai/dsh-http-proxy-settings'
       disabled: !!js "!ctx.get('profileContext')"
 
+    # Settings page: the automatic compaction threshold. Preset-local
+    # compaction backends read it live unless their own config names one.
+    - id: compaction-settings
+      name: '@deepseek-ai/dsh-compaction-settings'
+
     # Credential sources: inherited environment over the managed
     # `$DSH_HOME/.credentials.yaml`, with project and user `.env` fallbacks.
     # Adapters resolve references per request; the Models page writes only the

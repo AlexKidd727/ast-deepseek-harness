@@ -14,8 +14,9 @@ import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
-// Type-only: makes the optional sibling service available to `ctx.get()`.
+// Type-only: makes the optional sibling services available to `ctx.get()`.
 import type {} from '@deepseek-ai/dsh-compaction-tool-result-pruner'
+import type {} from '@deepseek-ai/dsh-compaction-settings'
 import {
   resolveCompactSpec,
   resolveConfig,
@@ -33,6 +34,7 @@ import type {
   BasicCompactionConfig,
   ModelCompactPolicyConfig,
   ResolvedConfig,
+  ResolvedTargetPolicy,
 } from './types.ts'
 
 export type {
@@ -195,7 +197,7 @@ export class BasicCompactionEngine extends CompactionEngine {
       this.overflowAgents.set(agent.session, agent)
       const target = routedTarget(agent.session)
       if (target === undefined) return next()
-      const policy = resolveTargetPolicy(this.config, target)
+      const policy = this.targetPolicy(target)
       const retries = this.overflowRetries.get(agent) ?? 0
       if (retries >= policy.maxOverflowRetries) return next()
 
@@ -252,8 +254,22 @@ export class BasicCompactionEngine extends CompactionEngine {
     const target = conversationTarget(agent)
     const config = target === undefined
       ? this.config
-      : resolveTargetPolicy(this.config, target)
+      : this.targetPolicy(target)
     return summarizeWithLlm(this.ctx, config, input, agent, signal)
+  }
+
+  /**
+   * Merge the exact-target policy with the live user threshold, read at each
+   * call so a Settings edit applies to the next check without a reload.
+   * @param target - exact provider/model route to match.
+   * @returns the merged policy before capacity scaling.
+   */
+  private targetPolicy(target: Pick<LlmCallConfig, 'provider' | 'model'>): ResolvedTargetPolicy {
+    return resolveTargetPolicy(
+      this.config,
+      target,
+      this.ctx.get('compactionSettings')?.thresholdRatio(),
+    )
   }
 
   /**
@@ -273,7 +289,7 @@ export class BasicCompactionEngine extends CompactionEngine {
   ): Promise<CompactionResult | null> {
     const target = routedTarget(agent.session)
     if (target === undefined) return null
-    const policy = resolveTargetPolicy(this.config, target)
+    const policy = this.targetPolicy(target)
     const meter = this.ctx.tokenMeter
     let measurement = meter.measure(agent.session)
     switch (trigger) {

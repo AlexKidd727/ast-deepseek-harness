@@ -701,6 +701,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'compactionSettings',
+    summary: 'Serve the user-owned compaction threshold to compaction backends.',
+    description: 'Serve the user-owned compaction threshold to compaction backends.',
+    methods: [
+      {
+        signature: 'thresholdRatio(): number',
+        description: 'Read the accepted threshold as a context-window fraction.',
+        parameters: [],
+        returns: 'the current saved percent divided by 100, in `[0.2, 1]`.',
+      },
+    ],
+  },
+  {
     key: 'computerUse',
     summary: 'Owns one optional provider registration in the shared computer-use service.',
     description: 'Owns one optional provider registration in the shared computer-use service.',

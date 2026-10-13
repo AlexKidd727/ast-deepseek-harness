@@ -687,7 +687,7 @@ export type ThemePreference = typeof THEME_PREFERENCES[number]
 ## `@deepseek-ai/dsh-compaction-basic`
 
 - `inject`: `llm` · `tokenMeter` · `sessions`
-- `source`: [`packages/compaction/compaction-basic/src/types.ts:40`](../packages/compaction/compaction-basic/src/types.ts)
+- `source`: [`packages/compaction/compaction-basic/src/types.ts:48`](../packages/compaction/compaction-basic/src/types.ts)
 
 ```ts config-catalog
 /** Basic compaction configuration with an optional exact-target policy table. */
@@ -700,9 +700,17 @@ export interface BasicCompactionConfig extends CompactionPolicyConfig {
 
 /** Policy fields shared by the default policy and exact model overrides. */
 export interface CompactionPolicyConfig {
-  /** Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`. Defaults to `0.8`. */
+  /**
+   * Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`.
+   * When omitted, the live `ctx.compactionSettings` threshold applies, else `0.8`.
+   */
   thresholdRatio?: number
-  /** Additional pressure headroom beyond the routed output reservation. Non-negative integer; defaults to `65536`. */
+  /**
+   * Additional pressure headroom beyond the routed output reservation.
+   * Non-negative integer; defaults to `65536`. At capacity resolution the
+   * effective value is capped at 10% of the adapter context window so local
+   * small-window routes keep a proactive pressure trigger.
+   */
   headroomTokens?: number
   /** Recent context retained as a fraction of context window minus reserved output tokens. Defaults to `0.16`. */
   retainRatio?: number
@@ -729,6 +737,23 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-compaction-basic -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-compaction-settings -->
+<a id="deepseek-aidsh-compaction-settings"></a>
+
+## `@deepseek-ai/dsh-compaction-settings`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/compaction/compaction-settings/src/index.ts:32`](../packages/compaction/compaction-settings/src/index.ts)
+
+```ts config-catalog
+/** Live fields presented on the Settings page. */
+export interface Config {
+  /** Context-window percent at which automatic compaction summarizes older history. */
+  thresholdPercent: Volatile<number>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-compaction-settings -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-compaction-tool-result-pruner -->
 <a id="deepseek-aidsh-compaction-tool-result-pruner"></a>
@@ -1675,6 +1700,29 @@ export interface TlsConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-host-webserver -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-http-proxy-settings -->
+<a id="deepseek-aidsh-http-proxy-settings"></a>
+
+## `@deepseek-ai/dsh-http-proxy-settings`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/boot/http-proxy-settings/src/index.ts:29`](../packages/boot/http-proxy-settings/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: decomposed proxy fields for the Settings Network page. */
+export interface Config {
+  /** Proxy hostname or IP; blank disables the settings proxy. */
+  host: Volatile<string | undefined>
+  /** TCP port in `1..65535`; defaults to {@link DEFAULT_PROXY_PORT}. */
+  port: Volatile<number>
+  /** Optional proxy username. */
+  username: Volatile<string | undefined>
+  /** Optional proxy password; redacted from settings reads. */
+  password: Volatile<string | undefined>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-http-proxy-settings -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-jobs-local -->
 <a id="deepseek-aidsh-jobs-local"></a>
@@ -4535,7 +4583,9 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-settings-compaction` | — | [`packages/client/ui-settings-compaction/src/index.ts`](../packages/client/ui-settings-compaction/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-settings-network` | — | [`packages/client/ui-settings-network/src/index.ts`](../packages/client/ui-settings-network/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` | — | [`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugins` | — | [`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-session-log` | — | [`packages/client/ui-settings-session-log/src/index.ts`](../packages/client/ui-settings-session-log/src/index.ts) |

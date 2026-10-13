@@ -209,6 +209,22 @@ Types: [CommandId](commands.md) · [SessionSeq](session.md)
 
 Source: [`packages/compaction/compaction/src/index.ts`](../../packages/compaction/compaction/src/index.ts)
 
+<a id="ctxcompactionsettings--compactionsettings"></a>
+
+### `ctx.compactionSettings` — `CompactionSettings`
+
+Serve the user-owned compaction threshold to compaction backends.
+
+```ts cordis-catalog
+/**
+ * Read the accepted threshold as a context-window fraction.
+ * @returns the current saved percent divided by 100, in `[0.2, 1]`.
+ */
+thresholdRatio(): number
+```
+
+Source: [`packages/compaction/compaction-settings/src/index.ts`](../../packages/compaction/compaction-settings/src/index.ts)
+
 <a id="ctxtoolresultpruner--toolresultpruner"></a>
 
 ### `ctx.toolResultPruner` — `ToolResultPruner`

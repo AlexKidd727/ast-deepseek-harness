@@ -313,8 +313,8 @@ describe('compact configuration and defaults', () => {
   it('uses low-friction service-wide defaults', () => {
     const resolved = resolveConfig({})
 
+    // The threshold default resolves per target so the live user setting can supply it.
     expect(resolved).toEqual({
-      thresholdRatio: 0.8,
       headroomTokens: 65_536,
       retainRatio: 0.16,
       summarizationProvider: '',
@@ -326,6 +326,18 @@ describe('compact configuration and defaults', () => {
       auto: true,
     })
     expect(Object.isFrozen(resolved)).toBe(true)
+    expect(resolveTargetPolicy(resolved, { provider: MODEL, model: MODEL }).thresholdRatio).toBe(0.8)
+  })
+
+  it('resolves the threshold from override, then configuration, then the user setting, then 0.8', () => {
+    const target = { provider: MODEL, model: MODEL }
+    expect(resolveTargetPolicy(resolveConfig({}), target, 0.6).thresholdRatio).toBe(0.6)
+    expect(resolveTargetPolicy(resolveConfig({}), target, undefined).thresholdRatio).toBe(0.8)
+    expect(resolveTargetPolicy(resolveConfig({ thresholdRatio: 0.7 }), target, 0.6).thresholdRatio).toBe(0.7)
+    expect(resolveTargetPolicy(resolveConfig({
+      thresholdRatio: 0.7,
+      modelPolicies: [{ ...target, thresholdRatio: 0.5 }],
+    }), target, 0.6).thresholdRatio).toBe(0.5)
   })
 
   it('defaults summary generation to headroom and preserves explicit caps', () => {
@@ -365,9 +377,9 @@ describe('compact configuration and defaults', () => {
       retainTokens: 70,
     })
     expect(retentionOnly).toMatchObject({
-      thresholdRatio: 0.8,
       retainTokens: 70,
     })
+    expect(retentionOnly).not.toHaveProperty('thresholdRatio')
     expect(retentionOnly).not.toHaveProperty('retainRatio')
   })
 
@@ -686,6 +698,31 @@ describe('pressure measurement and retention', () => {
       reason: 'change',
     })
     await expect(compactIfNeeded(compact, session)).resolves.not.toBeNull()
+  })
+
+  it('reads the live user threshold at each pressure check when configuration names none', async () => {
+    const ctx = createContext(1_000)
+    let ratio = 0.8
+    ctx.provide('compactionSettings', { thresholdRatio: () => ratio } as never)
+    const compact = service({ auto: false, retainRatio: 0.1 }, ctx)
+    const session = conversation(4)
+    const measured = ctx.tokenMeter.measure(session).totalTokens
+    expect(measured).toBeLessThan(800)
+    await expect(compactIfNeeded(compact, session)).resolves.toBeNull()
+
+    ratio = (Math.floor(measured / 10) - 1) / 100
+
+    await expect(compactIfNeeded(compact, session)).resolves.not.toBeNull()
+  })
+
+  it('keeps an explicitly configured threshold over the user setting', async () => {
+    const ctx = createContext(1_000)
+    ctx.provide('compactionSettings', { thresholdRatio: () => 0.2 } as never)
+    const compact = service({ auto: false, thresholdRatio: 0.8, retainRatio: 0.1 }, ctx)
+    const session = conversation(4)
+    expect(ctx.tokenMeter.measure(session).totalTokens).toBeLessThan(800)
+
+    await expect(compactIfNeeded(compact, session)).resolves.toBeNull()
   })
 
   it('falls back to the adapter request cap when the envelope records no reserve', async () => {

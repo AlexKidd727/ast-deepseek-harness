@@ -63,7 +63,7 @@ All settings are optional. With context window `W`, effective request output cap
 
 | Field | Default | Meaning |
 |---|---|---|
-| `thresholdRatio` | `0.8` | Window fraction used in `floor(min(W × thresholdRatio, W − O − B′))` with `B′ = min(headroomTokens, floor(W × 0.1))`. |
+| `thresholdRatio` | user setting, else `0.8` | Window fraction used in `floor(min(W × thresholdRatio, W − O − B′))` with `B′ = min(headroomTokens, floor(W × 0.1))`. Resolution order: the matching model policy, this field, the live [compaction-settings](../compaction-settings/README.md) percent, then `0.8`. |
 | `headroomTokens` | `65536` | Additional pressure headroom beyond the routed output reservation; a non-negative integer, capped at 10% of `W` when the pressure budget is resolved. |
 | `retainRatio` | `0.16` | Recent conversation kept verbatim as a fraction of `W − O`; mutually exclusive with `retainTokens`. |
 | `retainTokens` | — | Absolute recent-conversation budget kept verbatim; mutually exclusive with `retainRatio` and must be below the resolved threshold. |
@@ -75,7 +75,7 @@ All settings are optional. With context window `W`, effective request output cap
 | `modelPolicies` | `[]` | Exact `{ provider, model, ...partialPolicy }` overrides for individual model routes. |
 | `auto` | `true` | Enable automatic condensation and overflow recovery; set `false` for manual-only operation. |
 
-Misconfiguration fails fast: unknown settings, duplicate per-model overrides, invalid token counts, both retention forms together, or a retention ratio at least as large as the threshold ratio reject the plugin at load. When the model is first used, `W − O − B′` must be positive and the resolved retained budget must be below the trigger. Zero headroom requires an explicit positive `maxTokens`, globally or in that model policy. Lower `thresholdRatio` to compact earlier; set an explicit smaller `headroomTokens` when you want less reserve than `min(65536, floor(W × 0.1))`.
+Misconfiguration fails fast: unknown settings, duplicate per-model overrides, invalid token counts, both retention forms together, or a retention ratio at least as large as the threshold ratio reject the plugin at load. When the model is first used, `W − O − B′` must be positive and the resolved retained budget must be below the trigger. Zero headroom requires an explicit positive `maxTokens`, globally or in that model policy. Lower the **Context compaction** threshold on the Settings page, or `thresholdRatio`, to compact earlier; a saved Settings value applies at the next check without a restart. Set an explicit smaller `headroomTokens` when you want less reserve than `min(65536, floor(W × 0.1))`.
 
 ### What happens when condensation runs
 

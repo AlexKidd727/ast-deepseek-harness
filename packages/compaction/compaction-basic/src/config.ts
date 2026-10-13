@@ -82,6 +82,8 @@ export function resolveConfig(config: BasicCompactionConfig = {}): ResolvedConfi
   const headroomTokens = config.headroomTokens ?? 65_536
   const maxTokens = config.maxTokens ?? headroomTokens
   assertPositiveInteger('BasicCompactionConfig.maxTokens (explicit or from headroomTokens)', maxTokens)
+  // NOTE: an omitted threshold stays unresolved so the live user setting can
+  // supply it per check; load-time retention validation uses the default.
   const thresholdRatio = config.thresholdRatio ?? DEFAULT_THRESHOLD_RATIO
   const retention = resolveRetention(config, { retainRatio: DEFAULT_RETAIN_RATIO })
   validateRatioRetention(thresholdRatio, retention, 'BasicCompactionConfig')
@@ -103,7 +105,7 @@ export function resolveConfig(config: BasicCompactionConfig = {}): ResolvedConfi
   }
 
   return deepFreeze({
-    thresholdRatio,
+    ...config.thresholdRatio === undefined ? {} : { thresholdRatio: config.thresholdRatio },
     headroomTokens,
     ...retention,
     summarizationProvider: config.summarizationProvider ?? '',
@@ -118,13 +120,17 @@ export function resolveConfig(config: BasicCompactionConfig = {}): ResolvedConfi
 
 /**
  * Merge the exact provider/model override over the validated default policy.
+ * The threshold resolves from the matching override, then the configured
+ * top-level ratio, then `fallbackThresholdRatio`, then `0.8`.
  * @param config - validated service defaults and override table.
  * @param target - exact durable provider/model route to match.
+ * @param fallbackThresholdRatio - live user threshold in `(0, 1]`, used only when configuration names none.
  * @returns detached immutable policy before model-capacity scaling.
  */
 export function resolveTargetPolicy(
   config: ResolvedConfig,
   target: Pick<LlmCallConfig, 'provider' | 'model'>,
+  fallbackThresholdRatio?: number,
 ): ResolvedTargetPolicy {
   const override = config.modelPolicies.find(policy => (
     policy.provider === target.provider && policy.model === target.model
@@ -134,7 +140,8 @@ export function resolveTargetPolicy(
     : { retainTokens: config.retainTokens }
   return deepFreeze({
     target: { provider: target.provider, model: target.model },
-    thresholdRatio: override?.thresholdRatio ?? config.thresholdRatio,
+    thresholdRatio: override?.thresholdRatio ?? config.thresholdRatio
+      ?? fallbackThresholdRatio ?? DEFAULT_THRESHOLD_RATIO,
     headroomTokens: override?.headroomTokens ?? config.headroomTokens,
     ...resolveRetention(override ?? {}, inheritedRetention),
     summarizationProvider: override?.summarizationProvider ?? config.summarizationProvider,

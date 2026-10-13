@@ -63,7 +63,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `thresholdRatio` | `0.8` | 用于 `floor(min(W × thresholdRatio, W − O − B′))` 的窗口比例，其中 `B′ = min(headroomTokens, floor(W × 0.1))`。 |
+| `thresholdRatio` | 用户设置，否则 `0.8` | 用于 `floor(min(W × thresholdRatio, W − O − B′))` 的窗口比例，其中 `B′ = min(headroomTokens, floor(W × 0.1))`。解析顺序：匹配的模型策略、本字段、实时的 [compaction-settings](../compaction-settings/README.zh.md) 百分比，最后是 `0.8`。 |
 | `headroomTokens` | `65536` | 路由请求输出预留之外的额外压力余量；必须为非负整数，解析压力预算时上限为 `W` 的 10%。 |
 | `retainRatio` | `0.16` | 以 `W − O` 的一部分表示逐字保留的近期对话；与 `retainTokens` 互斥。 |
 | `retainTokens` | — | 逐字保留的近期对话绝对预算；与 `retainRatio` 互斥，并且必须低于已解析阈值。 |
@@ -75,7 +75,7 @@ kind: "package-reference"
 | `modelPolicies` | `[]` | 针对个别模型路由的精确 `{ provider, model, ...partialPolicy }` 覆盖。 |
 | `auto` | `true` | 启用自动压缩与溢出恢复；设为 `false` 则仅手动执行。 |
 
-配置错误会快速失败：未知设置、重复的按模型覆盖、无效 token 数、两种保留形式同时出现，或保留比例不小于阈值比例，都会在加载时拒绝插件。模型首次使用时，`W − O − B′` 必须为正，且解析出的保留预算必须低于触发阈值。余量为零时，必须在全局或对应模型策略中显式设置正数 `maxTokens`。降低 `thresholdRatio` 可以提早压缩；若需要小于 `min(65536, floor(W × 0.1))` 的预留，请显式设置更小的 `headroomTokens`。
+配置错误会快速失败：未知设置、重复的按模型覆盖、无效 token 数、两种保留形式同时出现，或保留比例不小于阈值比例，都会在加载时拒绝插件。模型首次使用时，`W − O − B′` 必须为正，且解析出的保留预算必须低于触发阈值。余量为零时，必须在全局或对应模型策略中显式设置正数 `maxTokens`。在设置页降低**上下文压缩**阈值或降低 `thresholdRatio` 可以提早压缩；设置页保存的值无需重启，在下一次检查时生效。若需要小于 `min(65536, floor(W × 0.1))` 的预留，请显式设置更小的 `headroomTokens`。
 
 ### 压缩运行时会发生什么
 

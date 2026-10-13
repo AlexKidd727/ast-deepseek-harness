@@ -123,6 +123,10 @@ describe('LlmRuntime', () => {
     expect(isContextWindowExceededError('input is too long for this model')).toBe(true)
     expect(isContextWindowExceededError('request too large for model context')).toBe(true)
     expect(isContextWindowExceededError('input exceeds the model context window limit')).toBe(true)
+    expect(isContextWindowExceededError(
+      '400 {"type":"invalid_request_error","message":"prompt (120307 tokens) leaves no room to answer '
+      + 'in the context (116000); requests are never truncated"}',
+    )).toBe(true)
   })
 
   it('does not mistake unrelated input validation for context-window overflow', () => {
@@ -130,6 +134,7 @@ describe('LlmRuntime', () => {
     expect(isContextWindowExceededError('invalid input: temperature exceeds maximum allowed value')).toBe(false)
     expect(isContextWindowExceededError('input exceeds maximum allowed value')).toBe(false)
     expect(isContextWindowExceededError('context window size must be positive')).toBe(false)
+    expect(isContextWindowExceededError('request leaves no room for tool arguments')).toBe(false)
   })
 
   it('distinguishes exhausted account quota from transient rate limiting', () => {

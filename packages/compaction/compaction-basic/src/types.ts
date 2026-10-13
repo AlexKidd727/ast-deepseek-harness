@@ -8,7 +8,10 @@ import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 
 /** Policy fields shared by the default policy and exact model overrides. */
 export interface CompactionPolicyConfig {
-  /** Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`. Defaults to `0.8`. */
+  /**
+   * Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`.
+   * When omitted, the live `ctx.compactionSettings` threshold applies, else `0.8`.
+   */
   thresholdRatio?: number
   /**
    * Additional pressure headroom beyond the routed output reservation.
@@ -65,8 +68,13 @@ interface ResolvedPolicyFields {
   readonly maxOverflowRetries: number
 }
 
-/** Validated immutable config whose target-specific defaults remain unresolved. */
-export type ResolvedConfig = ResolvedPolicyFields & ResolvedRetention & {
+/**
+ * Validated immutable config whose target-specific defaults remain unresolved.
+ * `thresholdRatio` is present only when configured; target resolution supplies
+ * the user setting or the default otherwise.
+ */
+export type ResolvedConfig = Omit<ResolvedPolicyFields, 'thresholdRatio'> & ResolvedRetention & {
+  readonly thresholdRatio?: number
   readonly modelPolicies: readonly Readonly<ModelCompactPolicyConfig>[]
   readonly auto: boolean
 }
