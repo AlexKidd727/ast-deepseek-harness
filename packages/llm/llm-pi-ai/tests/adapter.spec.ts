@@ -484,6 +484,19 @@ describe('provider profile lifecycle', () => {
     expect(ctx.llm.listProviders()).toEqual([])
   })
 
+  it('answers each route subagent cap, refusing subagents when the profile names none', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        openai: { maxSubagents: 3 },
+        anthropic: {},
+      },
+    })
+    expect(ctx.llm.providerSubagentLimit('openai')).toBe(3)
+    expect(ctx.llm.providerSubagentLimit('anthropic')).toBe(0)
+  })
+
   it('exposes the installed pi-ai model catalog through provider-neutral metadata', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

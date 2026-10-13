@@ -317,6 +317,96 @@ describe('continuable activation capacity', () => {
     }
   })
 
+  /** A gated adapter whose routes declare a live simultaneous-subagent cap. */
+  class CappedAdapter extends GatedAdapter {
+    limit: number | undefined = 0
+    override providerSubagentLimit(): number | undefined {
+      return this.limit
+    }
+  }
+
+  it('refuses every child on a route whose cap is zero without consuming tree capacity', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const adapter = new CappedAdapter([{ chunks: textResponse('done'), gate: release.promise }])
+    const { ctx, parent } = await setupWith(adapter, { maxActiveSubagents: 1 })
+    parkParent(ctx, parent)
+    try {
+      await expect(ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })).rejects.toMatchObject({
+        code: 'ACTIVATION_LIMIT_REACHED',
+        message: expect.stringContaining('subagents are disabled for LLM provider "mock" (provider maxSubagents: 0)') as string,
+      })
+      expect(managerState(ctx).resident.size).toBe(0)
+      adapter.limit = 1
+      const child = await ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })
+      release.resolve(undefined)
+      await waitNoActivation(ctx, child.childId)
+    } finally {
+      release.resolve(undefined)
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('caps one route across independent roots and frees the slot at settlement', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const adapter = new CappedAdapter([
+      { chunks: textResponse('done'), gate: release.promise },
+      { chunks: textResponse('after settlement') },
+    ])
+    adapter.limit = 1
+    const { ctx, parent } = await setupWith(adapter)
+    const otherRoot = await ctx.agentLoop.create(SessionId('parent-2'), { provider: 'mock', model: 'mock' })
+    parkParent(ctx, parent)
+    parkParent(ctx, otherRoot)
+    ctx.llm.registerAdapter(['uncapped'], new MockAdapter([textResponse('uncapped')]))
+    try {
+      const first = await ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })
+      await expect(ctx.subagents.startActivation({ ...startSpec(otherRoot), delivery: 'parent' })).rejects.toMatchObject({
+        code: 'ACTIVATION_LIMIT_REACHED',
+        message: expect.stringContaining('subagent limit reached for LLM provider "mock" (provider maxSubagents: 1)') as string,
+      })
+      const base = startSpec(otherRoot)
+      const rerouted = await ctx.subagents.startActivation({
+        ...base,
+        request: { ...base.request, agentOptions: { provider: 'uncapped', model: 'mock' } },
+        delivery: 'parent',
+      })
+      await waitNoActivation(ctx, rerouted.childId)
+      release.resolve(undefined)
+      await waitNoActivation(ctx, first.childId)
+      const replacement = await ctx.subagents.startActivation({ ...startSpec(otherRoot), delivery: 'parent' })
+      await waitNoActivation(ctx, replacement.childId)
+    } finally {
+      release.resolve(undefined)
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('returns the route slot when the tree capacity refuses the child', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const adapter = new CappedAdapter(Array.from({ length: 2 }, () => ({ chunks: textResponse('done'), gate: release.promise })))
+    adapter.limit = 2
+    const { ctx, parent } = await setupWith(adapter, { maxActiveSubagents: 1 })
+    parkParent(ctx, parent)
+    try {
+      const first = await ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })
+      await expect(ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })).rejects.toMatchObject({
+        code: 'ACTIVATION_LIMIT_REACHED',
+        message: expect.stringContaining('active child limit: 1') as string,
+      })
+      await subagentConfigs.get(ctx)!.update({ maxActiveSubagents: 3 })
+      const second = await ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })
+      await expect(ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })).rejects.toMatchObject({
+        code: 'ACTIVATION_LIMIT_REACHED',
+        message: expect.stringContaining('provider maxSubagents: 2') as string,
+      })
+      release.resolve(undefined)
+      await Promise.all([first, second].map(child => waitNoActivation(ctx, child.childId)))
+    } finally {
+      release.resolve(undefined)
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('defaults to eight live children and reuses capacity after settlement', async () => {
     const release = Promise.withResolvers<undefined>()
     const adapter = new GatedAdapter([

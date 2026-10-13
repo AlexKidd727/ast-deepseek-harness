@@ -67,6 +67,9 @@ export const DEFAULT_CONTEXT_WINDOW = 262_144
 /** Output capability assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_MAX_TOKENS = 32_768
 
+/** Simultaneous-subagent cap for a route that names none: subagents are refused. */
+export const DEFAULT_MAX_SUBAGENTS = 0
+
 /**
  * Modalities assumed for a model neither configuration nor the catalog
  * declares. Text is the floor every supported protocol certainly carries, so
@@ -180,6 +183,12 @@ export interface PiAiProviderProfile {
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
+  /**
+   * Most subagents that may run on this route at once across the process
+   * (default 0). `0` refuses every subagent whose model runs on this route; a
+   * positive value admits at most that many simultaneously.
+   */
+  maxSubagents?: number
 }
 
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
@@ -199,6 +208,8 @@ export interface ResolvedPiAiProviderProfile
   requestImagePixelBudget: number
   /** Positive raw request-version byte target after defaulting; the smallest quality-ladder output is used when no quality fits. */
   requestImageMaxBytes: number
+  /** Non-negative simultaneous-subagent cap after defaulting; `0` refuses subagents on this route. */
+  maxSubagents: number
   /** Immutable retry policy captured with this provider route. */
   retryPolicy: ResolvedRetryPolicy
   /**
@@ -346,6 +357,7 @@ const profile = z.object({
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
+  maxSubagents: z.number().step(1).min(0).default(DEFAULT_MAX_SUBAGENTS),
 })
 
 /** Runtime schema for {@link Config}. */
@@ -446,6 +458,10 @@ export function resolveProfiles(
     if (!Number.isSafeInteger(requestImageMaxBytes) || requestImageMaxBytes <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" requestImageMaxBytes must be a positive safe integer`)
     }
+    const maxSubagents = source.maxSubagents ?? DEFAULT_MAX_SUBAGENTS
+    if (!Number.isSafeInteger(maxSubagents) || maxSubagents < 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" maxSubagents must be a non-negative safe integer`)
+    }
     // Detached from the configuration object because pi-ai types `Model.input`
     // mutable. The schema's explicit default covers an absent key, so an empty
     // list here is always one someone typed — and unlike an entry's, nothing
@@ -497,6 +513,7 @@ export function resolveProfiles(
       maxRequestImageBytes,
       requestImagePixelBudget,
       requestImageMaxBytes,
+      maxSubagents,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },

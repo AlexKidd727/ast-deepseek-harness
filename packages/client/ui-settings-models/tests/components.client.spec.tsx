@@ -1362,6 +1362,58 @@ describe('ModelsSection', () => {
     expect(baseURL.value).toBe('')
   })
 
+  /** Render the pi-ai `openai` route editor over one namespace variant. */
+  async function renderPiAiRoute(namespace: SettingsNamespaceView) {
+    const scripted = scriptedFace()
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="openai"
+      displayName="openai"
+      namespace={namespace}
+      schema={settingsSchema}
+      settingsPath={['providers', 'openai']}
+      operations={operationsWith(scripted.face)}
+      t={t}
+      readOnly={false}
+      onClose={() => {}}
+    />)
+    fireEvent.click(screen.getByText(en.customized))
+    return { ...scripted, cap: screen.getByLabelText<HTMLInputElement>(en.maxSubagents) }
+  }
+
+  it('writes a typed pi-ai subagent cap and keeps the last accepted count over invalid text', async () => {
+    const piAi = wireNamespaces().find(view => view.ns === 'llm-pi-ai')!
+    const { mutate, cap } = await renderPiAiRoute({ ...piAi, base: { providers: { openai: { maxSubagents: 3 } } } })
+    expect(cap.value).toBe('')
+    expect(cap.placeholder).toBe('3')
+    expect(screen.getByText(en.maxSubagentsHint).id).toBe(cap.getAttribute('aria-describedby'))
+    fireEvent.change(cap, { target: { value: '2' } })
+    fireEvent.change(cap, { target: { value: '1.5' } })
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    expect(mutate.mock.calls[0]).toEqual([
+      'llm-pi-ai',
+      [{ op: 'set', path: ['providers', 'openai', 'maxSubagents'], value: 2 }],
+      0,
+    ])
+  })
+
+  it('clears a stored pi-ai subagent cap back to the refusing default', async () => {
+    const piAi = wireNamespaces().find(view => view.ns === 'llm-pi-ai')!
+    const user = { providers: { openai: { maxSubagents: 4 } } }
+    const { mutate, cap } = await renderPiAiRoute({ ...piAi, value: user, user })
+    expect(cap.value).toBe('4')
+    expect(cap.placeholder).toBe('0')
+    fireEvent.change(cap, { target: { value: '' } })
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    expect(mutate.mock.calls[0]).toEqual([
+      'llm-pi-ai',
+      [{ op: 'unset', path: ['providers', 'openai', 'maxSubagents'] }],
+      0,
+    ])
+  })
+
   it('saves credentials without changing the default model', async () => {
     const { ctx, set } = await mountDeepSeekCard()
     const initialize = vi.spyOn(ctx.remote.session, 'initializeDefaultModel')

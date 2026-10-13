@@ -246,6 +246,17 @@ describe('request-level dynamic profiles', () => {
     expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['openai'])
   })
 
+  it('serves an edited subagent cap to the next admission without re-registering', async () => {
+    const dir = await home()
+    const ctx = await boot(dir, { providers: { openai: {} } })
+    expect(ctx.llm.providerSubagentLimit('openai')).toBe(0)
+
+    await configurations.get(ctx)!.update({ providers: { openai: { maxSubagents: 2 } } })
+    expect(ctx.llm.providerSubagentLimit('openai')).toBe(2)
+    await expect(configurations.get(ctx)!.update({ providers: { openai: { maxSubagents: -1 } } })).rejects.toThrow()
+    expect(ctx.llm.providerSubagentLimit('openai')).toBe(2)
+  })
+
   it('refuses a settings write this adapter could not serve, leaving its routes alone', async () => {
     const dir = await home()
     const ctx = await boot(dir, { providers: { openai: {} } })

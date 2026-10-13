@@ -42,6 +42,7 @@ import type { StructuredAttachment } from './structured.ts'
 import type { SubagentDelivery } from './control-types.ts'
 import { ActivationPool, ChildLock, activationAgent, captureLocalResult, observeLocalFailure, requireLocalActivation } from './activation.ts'
 import type { Activation, ActivationResource, LocalActivation } from './activation.ts'
+import { ProviderCapacity } from './provider-capacity.ts'
 
 /** Inputs shared by model steering and human prompt delivery. */
 type ChildDeliveryOptions =
@@ -132,6 +133,8 @@ export class SubagentManager {
   private readonly resident = new Map<SessionId, Activation>()
   /** Root identities retain their pool across child settlement without retaining dead roots. */
   private readonly rootPools = new WeakMap<Agent, ActivationPool>()
+  /** Process-wide local-child slots per LLM provider route, across every root. */
+  private readonly providerCapacity = new ProviderCapacity()
   /** Materializations admitted before drain, tracked through publication or rollback. */
   private readonly materializations = new Set<Materialization>()
   /** Per-child serializer shared by delivery, release, and disposal. */
@@ -743,7 +746,20 @@ export class SubagentManager {
     inputs.signal.throwIfAborted()
     const lineage = this.liveLineage(inputs.parent)
     const pool = this.resident.get(inputs.parent.id)?.pool ?? this.rootPool(inputs.parent)
-    const releaseSlot = pool.reserve(this.maxActiveSubagents())
+    // The route's own cap is checked first: a route that refuses subagents
+    // must say so even when the tree is also full.
+    const releaseProviderSlot = this.reserveProviderSlot(inputs)
+    let releaseTreeSlot: () => void
+    try {
+      releaseTreeSlot = pool.reserve(this.maxActiveSubagents())
+    } catch (error: unknown) {
+      releaseProviderSlot()
+      throw error
+    }
+    const releaseSlot = (): void => {
+      releaseTreeSlot()
+      releaseProviderSlot()
+    }
     const settled = Promise.withResolvers<void>()
     const controller = new AbortController()
     const materialization: Materialization = {
@@ -837,6 +853,20 @@ export class SubagentManager {
       if (members.has(agent) || lineage.includes(root)) return root
     }
     return undefined
+  }
+
+  /**
+   * Reserve a local child's slot on the LLM provider route its options name.
+   * External backends run outside `ctx.llm` routes, and a local child whose
+   * options name no route has no route to charge, so both admit uncounted.
+   * @param inputs - materialization inputs carrying the child's Agent options.
+   * @returns the idempotent provider-slot release.
+   */
+  private reserveProviderSlot(inputs: MaterializeInputs): () => void {
+    if (inputs.kind !== 'local') return () => {}
+    const route = inputs.agentOptions.provider
+    if (route === undefined) return () => {}
+    return this.providerCapacity.reserve(route, this.ctx.get('llm')?.providerSubagentLimit(route))
   }
 
   /** Resolve a root's pool once; descendants inherit their resident parent's pool directly. */

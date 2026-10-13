@@ -284,6 +284,10 @@ export class PiAiAdapter extends LlmAdapter {
     return this.current().profiles.get(provider)?.retryPolicy
   }
 
+  override providerSubagentLimit(provider: string): number | undefined {
+    return this.current().profiles.get(provider)?.maxSubagents
+  }
+
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     return Promise.resolve().then(() => {
       const snapshot = this.current()

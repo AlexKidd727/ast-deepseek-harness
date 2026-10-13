@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-alpha.2/pi-ai-max-subagents/guide.md
+/:
+  en: 15d19efad3cc6e5b
+  zh: b4da38c39c10d5f0
+/pi-ai-routes-require-maxsubagents-for-subagents:
+  en: 20c01991889a9305
+  zh: a04dbf58ddec73d5
+/pi-ai-routes-require-maxsubagents-for-subagents/change:
+  en: 527b709e1510c779
+  zh: 425eb02ca7bfa5a6
+/pi-ai-routes-require-maxsubagents-for-subagents/migration:
+  en: 1a72a4da1afe3b58
+  zh: 367bec9cde585331

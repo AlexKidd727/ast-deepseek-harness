@@ -48,6 +48,7 @@ kind: "package-reference"
         requestImagePixelBudget: 4194304 # total pixels; 2048 by 2048 default
         requestImageMaxBytes: 1048576    # raw bytes before base64 expansion
         maxRequestImageBytes: 20971520   # accumulated base64 payload
+        maxSubagents: 2                  # simultaneous subagents on this route
         retryPolicy:
           mode: normal
           maxRetries: 3
@@ -87,6 +88,7 @@ kind: "package-reference"
 | `requestImageMaxBytes` | `1 MiB` | 每张请求图片在 base64 扩展前的编码字节目标 |
 | `maxRequestImageBytes` | `20 MiB` | base64 图片载荷总上限，保留图片超过时请求以 `IMAGE_OFFLOAD_REQUIRED` 失败 |
 | `retryPolicy` | normal，5 次重试 | 由 `dsh-llm-retry` 执行的提供方自有重试策略 |
+| `maxSubagents` | `0` | 整个进程中同时运行在该路由上的子智能体上限；`0` 拒绝模型运行在该路由上的所有子智能体（[子智能体准入](../../subagent/subagent/README.zh.md#activation-capacity)） |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-llm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
 

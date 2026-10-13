@@ -225,6 +225,17 @@ export abstract class LlmAdapter {
   }
 
   /**
+   * Return the route's cap on subagents running on it at once across the
+   * process. The default declares none. Implementations must answer
+   * synchronously without I/O; subagent admission reads it per activation.
+   * @param _provider - a route passed to `registerAdapter()` for this instance.
+   * @returns `undefined` for no cap, `0` to refuse every subagent on the route, or a positive cap.
+   */
+  providerSubagentLimit(_provider: string): number | undefined {
+    return undefined
+  }
+
+  /**
    * Resolve provider-side request-image pricing for one exact model route.
    * The default declares none, so consumers fall back to their own neutral
    * estimate. Implementations must answer synchronously without I/O; the
@@ -655,6 +666,17 @@ export class LlmRuntime extends TypertRemoteService {
    */
   providerRetryPolicy(provider: string): ResolvedRetryPolicy {
     return this.registration(provider).retryPolicy
+  }
+
+  /**
+   * Resolve the owning adapter's current cap on simultaneous subagents for one
+   * route. An unregistered route reports no cap; creating an Agent on it fails
+   * at route resolution instead.
+   * @param provider - provider route a subagent would run on.
+   * @returns `undefined` for no cap, `0` when the route refuses subagents, or a positive cap.
+   */
+  providerSubagentLimit(provider: string): number | undefined {
+    return this.adapters.get(provider)?.adapter.providerSubagentLimit(provider)
   }
 
   /**

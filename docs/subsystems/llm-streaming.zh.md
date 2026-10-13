@@ -1029,6 +1029,15 @@ async discoverModels( settingsNs: string, request: LlmModelDiscoveryRequest, sig
 providerRetryPolicy(provider: string): ResolvedRetryPolicy
 
 /**
+ * Resolve the owning adapter's current cap on simultaneous subagents for one
+ * route. An unregistered route reports no cap; creating an Agent on it fails
+ * at route resolution instead.
+ * @param provider - provider route a subagent would run on.
+ * @returns `undefined` for no cap, `0` when the route refuses subagents, or a positive cap.
+ */
+providerSubagentLimit(provider: string): number | undefined
+
+/**
  * Resolve provider-side request-image pricing for one exact route, or
  * `undefined` when the provider is unregistered or declares none. Unknown
  * providers degrade to `undefined` rather than throwing because callers

@@ -48,6 +48,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
         requestImagePixelBudget: 4194304 # total pixels; 2048 by 2048 default
         requestImageMaxBytes: 1048576    # raw bytes before base64 expansion
         maxRequestImageBytes: 20971520   # accumulated base64 payload
+        maxSubagents: 2                  # simultaneous subagents on this route
         retryPolicy:
           mode: normal
           maxRetries: 3
@@ -87,6 +88,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `requestImageMaxBytes` | `1 MiB` | Encoded-byte target for each request image before base64 expansion |
 | `maxRequestImageBytes` | `20 MiB` | Aggregate base64 image-payload bound; a request whose retained images exceed it fails with `IMAGE_OFFLOAD_REQUIRED` |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
+| `maxSubagents` | `0` | Most subagents running on this route at once across the process; `0` refuses every subagent whose model runs on it ([subagent admission](../../subagent/subagent/README.md#activation-capacity)) |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
 

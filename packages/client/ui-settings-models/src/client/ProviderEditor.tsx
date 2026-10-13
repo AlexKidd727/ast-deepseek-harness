@@ -7,10 +7,10 @@
  * a key is entered; a blank key materializes a reference-free profile for
  * provider-native authentication);
  * the collapsed 自定义设置 area carries the per-family extras (`baseURL` for
- * both families, DeepSeek's id/name/context-window model catalog, and the
- * display name and wire protocol of a pi-ai route the adapter does not ship —
- * the two fields the create card asked that route for, editable here for the
- * same reason).
+ * both families, DeepSeek's id/name/context-window model catalog, every pi-ai
+ * route's `maxSubagents` cap, and the display name and wire protocol of a
+ * pi-ai route the adapter does not ship — the two fields the create card
+ * asked that route for, editable here for the same reason).
  * Reasoning effort is deliberately absent: it is a per-MODEL capability, and
  * the models under one provider disagree about it, so a provider-scoped
  * control can only be set to a value some of them reject. The composer's
@@ -224,6 +224,20 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       ? schema.deletePath(current, [key])
       : schema.setPath(current, [key], value))
   }
+  /**
+   * Store a non-negative integer field typed as text; a cleared field drops
+   * the user override. Other text leaves the draft unchanged, so the
+   * controlled input keeps showing the last accepted count.
+   */
+  const setCount = (key: string, text: string): void => {
+    if (text.trim().length === 0) {
+      setDraft(current => schema.deletePath(current, [key]))
+      return
+    }
+    const count = Number(text)
+    if (!Number.isSafeInteger(count) || count < 0) return
+    setDraft(current => schema.setPath(current, [key], count))
+  }
 
   // The model list is validated by the same per-row checker for both families,
   // so a bad row is named by its position rather than by a blanket message.
@@ -357,6 +371,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const defaultContextWindow = schema.getPath(fallback, ['defaultContextWindow'])
     const defaultMaxTokens = schema.getPath(fallback, ['maxTokens'])
     const defaultInput = schema.getPath(fallback, ['defaultInput'])
+    // The user layer's own count, and the composition's beneath it, which
+    // is what clearing the field restores.
+    const draftMaxSubagents = schema.getPath(draft, ['maxSubagents'])
+    const baseMaxSubagents = schema.getPath(namespace.base, [...settingsPath, 'maxSubagents'])
     const keyPlaceholder = keyLocked
       ? t('keyEnvLocked')
       : keyState?.configured === true && props.credentialRequired !== true
@@ -465,6 +483,30 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     {probeApi === undefined ? <option value="">{t('customApiUnset')}</option> : null}
                     {protocols.map(choice => <option key={choice} value={choice}>{protocolLabel(t, choice)}</option>)}
                   </select>
+                </div>
+              )
+              : null}
+            {/* The route's simultaneous-subagent cap; the adapter refuses
+                subagents on a route whose cap is 0, which is also the
+                default when no layer names one. */}
+            {family === 'pi-ai'
+              ? (
+                <div className={styles['field']}>
+                  <span className={styles['fieldLabel']}>{t('maxSubagents')}</span>
+                  <input
+                    className={styles['input']}
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    value={typeof draftMaxSubagents === 'number' ? String(draftMaxSubagents) : ''}
+                    placeholder={String(typeof baseMaxSubagents === 'number' ? baseMaxSubagents : 0)}
+                    aria-describedby={`${props.provider}-max-subagents-hint`}
+                    aria-label={t('maxSubagents')}
+                    disabled={disabled}
+                    onChange={(event) => { setCount('maxSubagents', event.target.value) }}
+                  />
+                  <span id={`${props.provider}-max-subagents-hint`} className={styles['advancedHint']}>{t('maxSubagentsHint')}</span>
                 </div>
               )
               : null}

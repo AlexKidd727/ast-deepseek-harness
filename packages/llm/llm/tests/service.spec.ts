@@ -409,6 +409,26 @@ describe('LlmRuntime', () => {
     expect(ctx.llm.providerRetryPolicy('route')).toBe(newPolicy)
   })
 
+  it('reads the owning adapter subagent cap live and reports none for unknown or silent routes', async () => {
+    let limit = 0
+    const adapter = new class extends ScriptedAdapter {
+      override providerSubagentLimit(provider: string) {
+        return provider === 'capped' ? limit : undefined
+      }
+    }(SCRIPT)
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['capped', 'silent'], adapter)
+    ctx.llm.registerAdapter(['base'], new ScriptedAdapter(SCRIPT))
+
+    expect(ctx.llm.providerSubagentLimit('capped')).toBe(0)
+    limit = 2
+    expect(ctx.llm.providerSubagentLimit('capped')).toBe(2)
+    expect(ctx.llm.providerSubagentLimit('silent')).toBeUndefined()
+    expect(ctx.llm.providerSubagentLimit('base')).toBeUndefined()
+    expect(ctx.llm.providerSubagentLimit('missing')).toBeUndefined()
+  })
+
   it('normalizes an unregistered provider to a terminal failure', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
